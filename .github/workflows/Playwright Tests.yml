@@ -1,0 +1,58 @@
+name: Regression Tests
+
+on:
+  push: # Auto-trigger the workflow on push to main or master branches
+    branches:
+      - main
+      - master
+  pull_request: # Auto-trigger the workflow on pull requests to main or master branches
+    branches:
+      - main
+      - master
+  schedule: # Auto-trigger the workflow on a daily schedule
+    - cron: '0 2 * * *' # runs daily at 02:00 UTC; adjust to your desired time
+  workflow_dispatch: # Allow manual triggering of the workflow from the GitHub Actions tab
+
+jobs:
+  test:
+    timeout-minutes: 60  # Set a timeout for the job to prevent it from running indefinitely
+    runs-on: ubuntu-latest # Virtual machine (macos-latest, windows-latest, ubuntu-latest)
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+    
+     #installs the required dependencies
+      - name: Install dependencies
+        run: npm ci
+     
+    #installs the required browsers for Playwright tests
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+     # configures the environment variables for the tests
+      - name: configure environment variables
+        run: |
+          echo "PRACTICE_USERNAME=${{ secrets.PRACTICE_USERNAME}}" >> $GITHUB_ENV
+          echo "PRACTICE_PASSWORD=${{ secrets.PRACTICE_PASSWORD}}" >> $GITHUB_ENV
+
+     # runs the tests in headless mode  
+      - name: Run all tests
+        run: npm run tests:headless
+
+      # upload test results and reports as artifacts for later analysis
+      - name: upload playwright test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-test-results
+          path: |
+            test-results/
+            playwright-report/
+          retention-days: 30
